@@ -13,6 +13,6 @@
     "ios": "4.3",
     "osx": "10.6"
   },
-  "source_files": "CryptoCoding",
+  "source_files": "CryptoCoding/CryptoCoding.{h,m}",
   "requires_arc": true
 }
