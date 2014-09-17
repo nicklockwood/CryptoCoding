@@ -13,7 +13,7 @@
 
 + (TodoItem *)itemWithLabel:(NSString *)label;
 
-@property (nonatomic, retain) NSString *label;
+@property (nonatomic, strong) NSString *label;
 @property (nonatomic, assign) BOOL checked;
 
 @end

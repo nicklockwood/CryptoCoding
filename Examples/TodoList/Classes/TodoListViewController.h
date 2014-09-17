@@ -10,7 +10,7 @@
 
 @interface TodoListViewController : UIViewController <UITableViewDelegate, UITableViewDataSource>
 
-@property (nonatomic, retain) IBOutlet UITableView *tableView;
+@property (nonatomic, strong) IBOutlet UITableView *tableView;
 
 - (IBAction)toggleEditing:(id)sender;
 - (IBAction)createNewItem;

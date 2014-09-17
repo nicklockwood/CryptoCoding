@@ -1,6 +1,6 @@
 CryptoCoding
 
-Version 1.0, September 23rd, 2012
+Version 1.1, September 16th, 2014
 
 Copyright (C) 2012 Charcoal Design
 

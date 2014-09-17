@@ -19,30 +19,30 @@
 #pragma mark Loading and saving
 
 + (NSString *)documentsDirectory
-{	
-	NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-	return [paths objectAtIndex:0];
+{    
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    return paths[0];
 }
 
 + (TodoList *)sharedList
-{	
+{    
     static TodoList *sharedList = nil;
-	if (sharedList == nil)
+    if (sharedList == nil)
     {
         //attempt to load saved file
         NSString *path = [[self documentsDirectory] stringByAppendingPathComponent:@"TodoList.plist"];
-        sharedList = [[CryptoCoder unarchiveObjectWithFile:path] retain];
+        sharedList = [CryptoCoder unarchiveObjectWithFile:path];
         
         //if that fails, create new list
-		if (sharedList == nil)
+        if (sharedList == nil)
         {
             sharedList = [[TodoList alloc] init];
-		}
-	}
-	return sharedList;
+        }
+    }
+    return sharedList;
 }
 
-- (id)init
+- (instancetype)init
 {
     if ((self = [super init]))
     {
@@ -63,17 +63,17 @@
     return @"YsMXOHm2vsoIxTdSZWMILEVnQtgupefHGSROCLmwTnX3wBaCac";
 }
 
-- (void)save;
-{	
-	NSString *path = [[[self class] documentsDirectory] stringByAppendingPathComponent:@"TodoList.plist"];
-	[CryptoCoder archiveRootObject:self toFile:path];
+- (void)save
+{    
+    NSString *path = [[[self class] documentsDirectory] stringByAppendingPathComponent:@"TodoList.plist"];
+    [CryptoCoder archiveRootObject:self toFile:path];
 }
 
 
 #pragma mark -
 #pragma mark NSCoding
 
-- (id)initWithCoder:(NSCoder *)aDecoder
+- (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
     if ((self = [super init]))
     {
@@ -91,10 +91,5 @@
 #pragma mark -
 #pragma mark Cleanup
 
-- (void)dealloc
-{
-	[_items release];
-	[super dealloc];
-}
 
 @end

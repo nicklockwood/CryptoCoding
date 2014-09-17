@@ -12,7 +12,7 @@
 
 @interface NewItemViewController()
 
-@property (nonatomic, retain) TodoItem *item;
+@property (nonatomic, strong) TodoItem *item;
 
 @end
 
@@ -25,30 +25,25 @@
 #pragma mark UITextViewDelegate methods
 
 - (void)textViewDidChange:(UITextView *)textView
-{	
-	if (self.item == nil)
+{    
+    if (self.item == nil)
     {
-		//create a new TodoItem and add to list
-		self.item = [TodoItem itemWithLabel:textView.text];
-		[[TodoList sharedList].items addObject:self.item];	
-	}
+        //create a new TodoItem and add to list
+        self.item = [TodoItem itemWithLabel:textView.text];
+        [[TodoList sharedList].items addObject:self.item];    
+    }
     else
     {
-		//update the TodoItem
-		self.item.label = textView.text;
-	}
-	
-	//save the TodoList
-	[[TodoList sharedList] save];
+        //update the TodoItem
+        self.item.label = textView.text;
+    }
+    
+    //save the TodoList
+    [[TodoList sharedList] save];
 }
 
 #pragma mark -
 #pragma mark Cleanup
 
-- (void)dealloc
-{	
-	[_item release];
-	[super dealloc];
-}
 
 @end

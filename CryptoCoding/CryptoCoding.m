@@ -1,7 +1,7 @@
 //
 //  CryptoCoding.m
 //
-//  Version 1.0
+//  Version 1.1
 //
 //  Created by Nick Lockwood on 23/09/2012.
 //  Copyright (c) 2011 Charcoal Design
@@ -35,34 +35,91 @@
 #import <CommonCrypto/CommonKeyDerivation.h>
 
 
+#pragma GCC diagnostic ignored "-Wobjc-missing-property-synthesis"
+#pragma GCC diagnostic ignored "-Wdirect-ivar-access"
+#pragma GCC diagnostic ignored "-Wgnu"
+
+
+#import <Availability.h>
+#if !__has_feature(objc_arc)
+#error This class requires automatic reference counting
+#endif
+
+
 NSString *const CryptoCoderErrorDomain = @"CryptoCoderErrorDomain";
 NSString *const CryptoCoderException = @"CryptoCoderException";
 
+#if (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_5_0) || \
+    (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED < __MAC_10_7)
 
 const float CryptoCodingVersion = 1.0f;
+
+#else
+
+const float CryptoCodingVersion = 2.0f;
+
+#endif
 
 
 @implementation NSData (CryptoCoding)
 
 //based on blog post by Rob Napier: http://robnapier.net/blog/aes-commoncrypto-564
 
-+ (NSData *)AESKeyWithPassword:(NSString *)password salt:(NSData *)salt
-{    
-    //generate key. ideally we'd just use the CCKeyDerivationPBKDF
-    //method for this but it's not available on iOS < 5 or Mac OS < 10.7
-    NSMutableData *key = [NSMutableData dataWithData:[password dataUsingEncoding:NSUTF8StringEncoding]];
-    [key appendData:salt];
-    key.length = MAX([key length], CC_MD5_DIGEST_LENGTH);
-    for (int i = 0; i < 1024; i++)
++ (NSData *)AESKeyWithPassword:(NSString *)password salt:(NSData *)salt error:(__autoreleasing NSError **)error version:(float)version
+{
+    if ((version ?: CryptoCodingVersion) >= 2.0f)
     {
-        CC_MD5(key.bytes, key.length, key.mutableBytes);
-        [key setLength:CC_MD5_DIGEST_LENGTH];
+      
+#if (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_5_0) || \
+    (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_7)
+      
+        //generate key using CCKeyDerivationPBKDF
+        NSMutableData *key = [NSMutableData dataWithLength:kCCKeySizeAES128];
+        int result = CCKeyDerivationPBKDF(kCCPBKDF2, // algorithm
+                                          password.UTF8String, // password
+                                          [password lengthOfBytesUsingEncoding:NSUTF8StringEncoding], // password length
+                                          salt.bytes, // salt
+                                          salt.length, // salt length
+                                          kCCPRFHmacAlgSHA1, // PRF
+                                          1024, // rounds
+                                          key.mutableBytes, // derived key
+                                          key.length); // derived key length
+      
+#else
+      
+        //CCKeyDerivationPBKDF is not available on iOS < 5 or Mac OS < 10.7
+        NSMutableData *key = nil;
+        int result = kCCUnimplemented;
+      
+#endif
+      
+        if (result == kCCSuccess)
+        {
+            return key;
+        }
+        else
+        {
+            if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:result userInfo:@{NSLocalizedDescriptionKey: @"Could not generate encryption key"}];
+            return nil;
+        }
     }
-    key.length = kCCKeySizeAES128;
-    return key;
+    else
+    {
+        //use legacy key generation mechanism
+        NSMutableData *key = [NSMutableData dataWithData:[password dataUsingEncoding:NSUTF8StringEncoding]];
+        [key appendData:salt];
+        key.length = MAX([key length], CC_MD5_DIGEST_LENGTH);
+        for (NSInteger i = 0; i < 1024; i++)
+        {
+            CC_MD5(key.bytes, (CC_LONG)key.length, key.mutableBytes);
+            [key setLength:CC_MD5_DIGEST_LENGTH];
+        }
+        key.length = kCCKeySizeAES128;
+        return key;
+    }
 }
 
-- (NSData *)AESEncryptedDataWithPassword:(NSString *)password IV:(NSData **)IV salt:(NSData **)salt error:(NSError **)error
+- (NSData *)AESEncryptedDataWithPassword:(NSString *)password IV:(__autoreleasing NSData **)IV salt:(__autoreleasing NSData **)salt error:(__autoreleasing NSError **)error version:(float)version
 {        
     //generate IV if not supplied
     if (*IV == nil)
@@ -70,7 +127,7 @@ const float CryptoCodingVersion = 1.0f;
         *IV = [NSMutableData dataWithLength:kCCBlockSizeAES128];
         if (SecRandomCopyBytes(kSecRandomDefault, kCCBlockSizeAES128, ((NSMutableData *)*IV).mutableBytes))
         {
-            if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:errno userInfo:[NSDictionary dictionaryWithObject:@"Could not generate initialization vector value" forKey:NSLocalizedDescriptionKey]];
+            if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:errno userInfo:@{NSLocalizedDescriptionKey: @"Could not generate initialization vector value"}];
             return nil;
         }
     }
@@ -81,18 +138,19 @@ const float CryptoCodingVersion = 1.0f;
         *salt = [NSMutableData dataWithLength:8];
         if (SecRandomCopyBytes(kSecRandomDefault, [*salt length], ((NSMutableData *)*salt).mutableBytes))
         {
-            if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:errno userInfo:[NSDictionary dictionaryWithObject:@"Could not generate salt value" forKey:NSLocalizedDescriptionKey]];
+            if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:errno userInfo:@{NSLocalizedDescriptionKey: @"Could not generate salt value"}];
             return nil;
         }
     }
     
     //generate key
-    NSData *key = [NSData AESKeyWithPassword:password salt:*salt];
+    NSData *key = [NSData AESKeyWithPassword:password salt:*salt error:error version:version];
+    if (!key) return nil;
     
     //encrypt the data
-	size_t length = 0;
-	NSMutableData *cypher = [NSMutableData dataWithLength:self.length + kCCBlockSizeAES128];
-	CCCryptorStatus result = CCCrypt(kCCEncrypt, // operation
+    size_t length = 0;
+    NSMutableData *cypher = [NSMutableData dataWithLength:self.length + kCCBlockSizeAES128];
+    CCCryptorStatus result = CCCrypt(kCCEncrypt, // operation
                                      kCCAlgorithmAES128, // algorithm
                                      kCCOptionPKCS7Padding, // options
                                      key.bytes, // key
@@ -103,27 +161,27 @@ const float CryptoCodingVersion = 1.0f;
                                      cypher.mutableBytes, // ouput
                                      cypher.length, // output max length
                                      &length); // output length
-	if (result == kCCSuccess)
-	{
-		cypher.length = length;
-	}
-	else
-	{
-        if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:result userInfo:[NSDictionary dictionaryWithObject:@"Could not encrypt data" forKey:NSLocalizedDescriptionKey]];
-		return nil;
-	}
-	return cypher;
+    if (result == kCCSuccess)
+    {
+        cypher.length = length;
+    }
+    else
+    {
+        if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:result userInfo:@{NSLocalizedDescriptionKey: @"Could not encrypt data"}];
+        return nil;
+    }
+    return cypher;
 }
 
-- (NSData *)AESDecryptedDataWithPassword:(NSString *)password IV:(NSData *)IV salt:(NSData *)salt error:(NSError **)error
+- (NSData *)AESDecryptedDataWithPassword:(NSString *)password IV:(NSData *)IV salt:(NSData *)salt error:(__autoreleasing NSError **)error version:(float)version
 {
     //generate key
-    NSData *key = [NSData AESKeyWithPassword:password salt:salt];
+    NSData *key = [NSData AESKeyWithPassword:password salt:salt error:error version:version];
 
     //decrypt the data
     size_t length = 0;
     NSMutableData *cleartext = [NSMutableData dataWithLength:self.length + kCCBlockSizeAES128];
-	CCCryptorStatus result = CCCrypt(kCCDecrypt, // operation
+    CCCryptorStatus result = CCCrypt(kCCDecrypt, // operation
                                      kCCAlgorithmAES128, // algorithm
                                      kCCOptionPKCS7Padding, // options
                                      key.bytes, // key
@@ -134,16 +192,16 @@ const float CryptoCodingVersion = 1.0f;
                                      cleartext.mutableBytes, // ouput
                                      cleartext.length, // output max length
                                      &length); // output length
-	if (result == kCCSuccess)
-	{
-		cleartext.length = length;
-	}
-	else
-	{
-        if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:result userInfo:[NSDictionary dictionaryWithObject:@"Could not decrypt data" forKey:NSLocalizedDescriptionKey]];
-		return nil;
-	}
-	return cleartext;
+    if (result == kCCSuccess)
+    {
+        cleartext.length = length;
+    }
+    else
+    {
+        if (error) *error = [NSError errorWithDomain:CryptoCoderErrorDomain code:result userInfo:@{NSLocalizedDescriptionKey: @"Could not decrypt data"}];
+        return nil;
+    }
+    return cleartext;
 }
 
 @end
@@ -162,12 +220,7 @@ const float CryptoCodingVersion = 1.0f;
 
 @implementation CryptoArchive
 
-@synthesize iv = _iv;
-@synthesize salt = _salt;
-@synthesize cypher = _cypher;
-@synthesize rootObjectClass = _rootObjectClass;
-
-- (id)initWithRootObject:(id)rootObject password:(NSString *)password
+- (instancetype)initWithRootObject:(id<NSCoding>)rootObject password:(NSString *)password
 {
     if ((self = [self init]))
     {
@@ -175,8 +228,8 @@ const float CryptoCodingVersion = 1.0f;
         NSData *salt = nil;
         NSData *data = [NSKeyedArchiver archivedDataWithRootObject:rootObject];
         self.version = CryptoCodingVersion;
-        self.rootObjectClass = [rootObject class];
-        self.cypher = [data AESEncryptedDataWithPassword:password IV:&iv salt:&salt error:NULL];
+        self.rootObjectClass = [(NSObject *)rootObject classForCoder];
+        self.cypher = [data AESEncryptedDataWithPassword:password IV:&iv salt:&salt error:NULL version:CryptoCodingVersion];
         self.salt = salt;
         self.iv = iv;
     }
@@ -187,7 +240,7 @@ const float CryptoCodingVersion = 1.0f;
 {
     if (floor(_version) <= CryptoCodingVersion)
     {
-        NSData *data = [_cypher AESDecryptedDataWithPassword:password IV:_iv salt:_salt error:NULL];
+        NSData *data = [_cypher AESDecryptedDataWithPassword:password IV:_iv salt:_salt error:NULL version:_version];
         return [NSKeyedUnarchiver unarchiveObjectWithData:data];
     }
     else
@@ -202,7 +255,7 @@ const float CryptoCodingVersion = 1.0f;
     return YES;
 }
 
-- (id)initWithCoder:(NSCoder *)aDecoder
+- (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
     if ([aDecoder respondsToSelector:@selector(decodeObjectOfClass:forKey:)])
     {
@@ -231,7 +284,7 @@ const float CryptoCodingVersion = 1.0f;
     [aCoder encodeObject:_salt forKey:@"salt"];
     [aCoder encodeObject:_cypher forKey:@"cypher"];
     [aCoder encodeObject:NSStringFromClass(_rootObjectClass) forKey:@"className"];
-    [aCoder encodeObject:[NSNumber numberWithFloat:_version] forKey:@"version"];
+    [aCoder encodeObject:@(_version) forKey:@"version"];
 }
 
 - (id)copyWithZone:(NSZone *)zone
@@ -247,21 +300,8 @@ const float CryptoCodingVersion = 1.0f;
 
 - (NSString *)description
 {
-    return [NSString stringWithFormat:@"<%@: 0x%x version=%g>", [self class], (int)self, _version];
+    return [NSString stringWithFormat:@"<%@: %p version=%g>", [self class], self, _version];
 }
-
-#if !__has_feature(objc_arc)
-
-- (void)dealloc
-{
-    [_iv release];
-    [_salt release];
-    [_cypher release];
-    [_rootObjectClass release];
-    [super dealloc];
-}
-
-#endif
 
 @end
 
@@ -295,18 +335,13 @@ const float CryptoCodingVersion = 1.0f;
     return [self unarchiveObjectWithData:[NSData dataWithContentsOfFile:path]];
 }
 
-+ (NSData *)archivedDataWithRootObject:(id)rootObject
++ (NSData *)archivedDataWithRootObject:(id<CryptoCoding>)rootObject
 {
-    Class class = [rootObject class];
+    Class class = [(NSObject *)rootObject classForCoder];
     if ([class respondsToSelector:@selector(CCPassword)])
     {
         NSString *password = [class CCPassword];
         CryptoArchive *archive = [[CryptoArchive alloc] initWithRootObject:rootObject password:password];
-        
-#if !__has_feature(objc_arc)
-        [archive autorelease];
-#endif
-        
         return [NSKeyedArchiver archivedDataWithRootObject:archive];
     }
     else
@@ -316,7 +351,7 @@ const float CryptoCodingVersion = 1.0f;
     }
 }
 
-+ (BOOL)archiveRootObject:(id)rootObject toFile:(NSString *)path
++ (BOOL)archiveRootObject:(id<CryptoCoding>)rootObject toFile:(NSString *)path
 {
     return [[self archivedDataWithRootObject:rootObject] writeToFile:path atomically:YES];
 }

@@ -11,9 +11,9 @@ CryptoCoding is also designed to work hand-in-hand with the BaseModel library (h
 Supported OS & SDK Versions
 -----------------------------
 
-* Supported build target - iOS 6.0 / Mac OS 10.8 (Xcode 5.0, Apple LLVM compiler 4.1)
+* Supported build target - iOS 8.0 / Mac OS 10.9 (Xcode 6.0, Apple LLVM compiler 6.0)
 * Earliest supported deployment target - iOS 5.0 / Mac OS 10.7
-* Earliest compatible deployment target - iOS 4.0 / Mac OS 10.6
+* Earliest compatible deployment target - iOS 4.0 / Mac OS 10.7
 
 NOTE: 'Supported' means that the library has been tested with this version. 'Compatible' means that the library should work on this OS version (i.e. it doesn't rely on any unavailable SDK features) but is no longer being tested for compatibility and may require tweaking or bug fixes to run correctly.
 
@@ -21,7 +21,9 @@ NOTE: 'Supported' means that the library has been tested with this version. 'Com
 ARC Compatibility
 ------------------
 
-CryptoCoding is compatible with both ARC and non-ARC compile targets.
+As of version 1.0.2, CryptoCoding requires ARC. If you wish to use CryptoCoding in a non-ARC project, just add the -fobjc-arc compiler flag to the CryptoCoding.m file. To do this, go to the Build Phases tab in your target settings, open the Compile Sources group, double-click CryptoCoding.m in the list and type -fobjc-arc into the popover.
+
+If you wish to convert your whole project to CryptoCoding, comment out the #error line in CryptoCoding.m, then run the Edit > Refactor > Convert to Objective-C ARC... tool in Xcode and make sure all files that you wish to use ARC for (including CryptoCoding.m) are checked.
 
 
 Thread Safety
@@ -63,13 +65,13 @@ NSData (CryptoCoding) methods
 
 The CryptoCoding category extends NSData with the following methods:
 
-    - (NSData *)AESEncryptedDataWithPassword:(NSString *)password IV:(NSData **)IV salt:(NSData **)salt error:(NSError **)error;
+    - (NSData *)AESEncryptedDataWithPassword:(NSString *)password IV:(NSData **)IV salt:(NSData **)salt error:(NSError **)error version:(float)version;
     
-This method takes a password and returns an encrypted copy of the data using the AES128 algorithm. Note the IV (Initialization Vector) and salt arguments. These arguments are pointers to values that will be returned by the method. It is important to preserve the salt and IV values as you will need them to decrypt the data later. Only the password is secret - the salt and IV values can be stored in cleartext along with the encrypted data.
+This method takes a password and returns an encrypted copy of the data using the AES128 algorithm. Note the IV (Initialization Vector) and salt arguments. These arguments are pointers to values that will be returned by the method. It is important to preserve the salt and IV values as you will need them to decrypt the data later. Only the password is secret - the salt and IV values can be stored in cleartext along with the encrypted data. Pass 0 for the version parameter to use the default encryption version. If you need to provide legacy support, use 1.0.
     
-    - (NSData *)AESDecryptedDataWithPassword:(NSString *)password IV:(NSData *)IV salt:(NSData *)salt error:(NSError **)error;
+    - (NSData *)AESDecryptedDataWithPassword:(NSString *)password IV:(NSData *)IV salt:(NSData *)salt error:(NSError **)error version:(float)version;
     
-This method takes a password, salt and IV value and returns an unencrypted copy of the data. The password, salt and IV must all match those used to originally create the data.
+This method takes a password, salt and IV value and returns an unencrypted copy of the data. The password, salt and IV must all match those used to originally create the data. The version value should match the version used to encrypt the data originally (either 1.0 or 2.0).
 
 
 CryptoArchive methods
@@ -83,7 +85,7 @@ This creates a new CryptoArchive from an NSCodable object and a password. Unlike
 
     - (id)unarchiveRootObjectWithPassword:(NSString *)password;
     
-This decodes the original object from a CryptoArchive and returns it. CryptoArchives are versioned. If the integer part of the archive version is greater than the `CryptoCodingVersion` of the currently installed version of the library, the decryption process will fail and the method will return nil. The same applies if the password doesn't match the one used to create the archive.
+This decodes the original object from a CryptoArchive and returns it. CryptoArchives are versioned. If the inetegr part of the archive version is greater than the `CryptoCodingVersion` of the currently installed version of the library, the decryption process will fail and the method will return nil. The same applies if the password doesn't match the one used to create the archive.
 
 
 CryptoCoder methods
@@ -113,3 +115,21 @@ As above, except that the resulting encypted data will be written directly to th
     + (Class)classForClassName:(NSString *)codedName;
     
 These methods are used to specify class name substitutions when encoding or decoding objects, and can be useful when managing upgrades between app releases where classes may have been renamed. These methods wrap the equivalent methods of NSKeyedArchiver/Unarchiver respectively, so it makes no difference whether you call them on CryptoCoder or NSKeyedArchiver/Unarchiver.
+
+
+Release notes
+-----------------
+
+Version 1.1
+
+- Now requires ARC
+- Implemented new key generation mechanism for iOS 5 / Mac OS 10.7 and above
+- Now conforms to -Weverything warning level
+
+Version 1.0.1
+
+- Dropped support for Mac OS 10.6
+
+Version 1.0
+
+- Initial release

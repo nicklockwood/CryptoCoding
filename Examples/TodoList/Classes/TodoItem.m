@@ -15,37 +15,32 @@
 
 + (TodoItem *)itemWithLabel:(NSString *)label
 {
-	TodoItem *item = [[self alloc] init];
-	item.label = label;
-	return [item autorelease];
+    TodoItem *item = [[self alloc] init];
+    item.label = label;
+    return item;
 }
 
 #pragma mark -
 #pragma mark NSCoding
 
-- (id)initWithCoder:(NSCoder *)decoder
-{	
-	if ((self = [super init]))
+- (instancetype)initWithCoder:(NSCoder *)decoder
+{    
+    if ((self = [super init]))
     {
-		self.label = [decoder decodeObjectForKey:@"label"];
-		self.checked = [[decoder decodeObjectForKey:@"checked"] boolValue];
-	}
-	return self;
+        self.label = [decoder decodeObjectForKey:@"label"];
+        self.checked = [[decoder decodeObjectForKey:@"checked"] boolValue];
+    }
+    return self;
 }
 
 - (void)encodeWithCoder:(NSCoder *)encoder
 {
-	[encoder encodeObject:self.label forKey:@"label"];
-	[encoder encodeObject:[NSNumber numberWithBool:self.checked] forKey:@"checked"];
+    [encoder encodeObject:self.label forKey:@"label"];
+    [encoder encodeObject:@(self.checked) forKey:@"checked"];
 }
 
 #pragma mark -
 #pragma mark Cleanup
 
-- (void)dealloc
-{
-	[_label release];
-	[super dealloc];
-}
 
 @end
