@@ -1,7 +1,7 @@
 //
 //  CryptoCoding.m
 //
-//  Version 1.1
+//  Version 1.1.1
 //
 //  Created by Nick Lockwood on 23/09/2012.
 //  Copyright (c) 2011 Charcoal Design
@@ -35,9 +35,13 @@
 #import <CommonCrypto/CommonKeyDerivation.h>
 
 
-#pragma GCC diagnostic ignored "-Wobjc-missing-property-synthesis"
-#pragma GCC diagnostic ignored "-Wdirect-ivar-access"
-#pragma GCC diagnostic ignored "-Wgnu"
+#pragma clang diagnostic ignored "-Wobjc-missing-property-synthesis"
+#pragma clang diagnostic ignored "-Wnullable-to-nonnull-conversion"
+#pragma clang diagnostic ignored "-Wpartial-availability"
+#pragma clang diagnostic ignored "-Wdirect-ivar-access"
+#pragma clang diagnostic ignored "-Wdouble-promotion"
+#pragma clang diagnostic ignored "-Wfloat-conversion"
+#pragma clang diagnostic ignored "-Wgnu"
 
 
 #import <Availability.h>
@@ -300,7 +304,7 @@ const float CryptoCodingVersion = 2.0f;
 
 - (NSString *)description
 {
-    return [NSString stringWithFormat:@"<%@: %p version=%g>", [self class], self, _version];
+    return [NSString stringWithFormat:@"<%@: %p version=%g>", [self class], (void *)self, _version];
 }
 
 @end

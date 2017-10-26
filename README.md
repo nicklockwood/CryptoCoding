@@ -11,8 +11,8 @@ CryptoCoding is also designed to work hand-in-hand with the BaseModel library (h
 Supported OS & SDK Versions
 -----------------------------
 
-* Supported build target - iOS 8.0 / Mac OS 10.9 (Xcode 6.0, Apple LLVM compiler 6.0)
-* Earliest supported deployment target - iOS 5.0 / Mac OS 10.7
+* Supported build target - iOS 11.0 / Mac OS 10.12 (Xcode 9.0)
+* Earliest supported deployment target - iOS 9.0 / Mac OS 10.10
 * Earliest compatible deployment target - iOS 4.0 / Mac OS 10.7
 
 NOTE: 'Supported' means that the library has been tested with this version. 'Compatible' means that the library should work on this OS version (i.e. it doesn't rely on any unavailable SDK features) but is no longer being tested for compatibility and may require tweaking or bug fixes to run correctly.
@@ -119,6 +119,10 @@ These methods are used to specify class name substitutions when encoding or deco
 
 Release notes
 -----------------
+
+Version 1.1.1
+
+- Uodated for Xcode 9
 
 Version 1.1
 

@@ -88,13 +88,4 @@
     return cell;
 }
 
-#pragma mark -
-#pragma mark Cleanup
-
-- (void)viewDidUnload
-{
-    self.tableView = nil;
-    [super viewDidUnload];
-}
-
 @end
